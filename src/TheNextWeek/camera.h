@@ -31,6 +31,27 @@ class camera {
     double defocus_angle = 0;  // Variation angle of rays through each pixel
     double focus_dist = 10;    // Distance from camera lookfrom point to plane of perfect focus
 
+    double convergence_threshold = 0.01; // Threshold for adaptive sampling convergenge
+    int    batch_size = 16;  // Every 16 samples, check convergence
+
+    // Helper for calculating luminance from RGB color
+    static double get_luminance(const color& c) {
+        return 0.2126 * c.x() + 0.7152 * c.y() + 0.0722 * c.z();
+    }
+
+    // Helper for checking if pixel has converged based on standard error
+    static bool check_convergence(long N, double sum_L, double sum_L2, double threshold) {
+        if (N < 2) return false;  // At least 2 samples for variance
+        
+        double mean = sum_L / N;
+        double variance = (sum_L2 / N) - (mean * mean);
+        
+        if (variance < 0) variance = 0; // Ensure variance is positive .-.
+        
+        double std_error = std::sqrt(variance) / std::sqrt(N);
+        return std_error < threshold;
+    }
+
     void render(const hittable& world) {
         initialize();
 
@@ -40,11 +61,33 @@ class camera {
             std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
             for (int i = 0; i < image_width; i++) {
                 color pixel_color(0,0,0);
-                for (int sample = 0; sample < samples_per_pixel; sample++) {
+                double sum_L = 0.0;   // Sum of luminance values
+                double sum_L2 = 0.0;  // Sum of squared luminance values
+                long current_samples = 0;
+                
+                // Continue until convergence OR max samples
+                while (current_samples < samples_per_pixel) {
                     ray r = get_ray(i, j);
-                    pixel_color += ray_color(r, max_depth, world);
+                    color sample_color = ray_color(r, max_depth, world);
+                    pixel_color += sample_color;
+                    
+                    // Track luminance statistics for convergence check
+                    double L = get_luminance(sample_color);
+                    sum_L += L;
+                    sum_L2 += L * L;
+                    current_samples++;
+                    
+                    // Every batch_size samples, check convergence
+                    if (current_samples % batch_size == 0) {
+                        if (check_convergence(current_samples, sum_L, sum_L2, convergence_threshold)) {
+                            break;  // Pixel has converged :D
+                        }
+                    }
                 }
-                write_color(std::cout, pixel_samples_scale * pixel_color);
+                
+                // Scale by actual number of samples taken
+                double scale = 1.0 / current_samples;
+                write_color(std::cout, scale * pixel_color);
             }
         }
 

@@ -19,7 +19,7 @@ class camera {
   public:
     double aspect_ratio      = 1.0;  // Ratio of image width over height
     int    image_width       = 100;  // Rendered image width in pixel count
-    int    samples_per_pixel = 10;   // Count of random samples for each pixel
+    int    samples_per_pixel = 500;  // Count of max random samples for each pixel
     int    max_depth         = 10;   // Maximum number of ray bounces into scene
     color  background;               // Scene background color
 
@@ -52,6 +52,19 @@ class camera {
         return std_error < threshold;
     }
 
+    // Helper for checking if pixel has converged based on contrast
+    static bool check_convergence_contrast(double min_L, double max_L, double threshold) {
+        double sum = max_L + min_L;
+        
+        // Avoid division by zero
+        if (std::abs(sum) < 1e-10) {
+            return true;  // Converged (i.e., no significant luminance variation)
+        }
+        
+        double contrast = (max_L - min_L) / sum;
+        return contrast < threshold;
+    }
+
     void render(const hittable& world) {
         initialize();
 
@@ -61,8 +74,15 @@ class camera {
             std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
             for (int i = 0; i < image_width; i++) {
                 color pixel_color(0,0,0);
-                double sum_L = 0.0;   // Sum of luminance values
-                double sum_L2 = 0.0;  // Sum of squared luminance values
+                
+                // Method selection: true = Variance, false = Contrast
+                bool use_variance_method = false;
+                
+                // Track statistics for both methods
+                double sum_L = 0.0;   // Sum of luminance values (Variance)
+                double sum_L2 = 0.0;  // Sum of squared luminance values (Variance)
+                double min_L = infinity;  // Minimum luminance (Contrast)
+                double max_L = -infinity; // Maximum luminance (Contrast)
                 long current_samples = 0;
                 
                 // Continue until convergence OR max samples
@@ -75,11 +95,20 @@ class camera {
                     double L = get_luminance(sample_color);
                     sum_L += L;
                     sum_L2 += L * L;
+                    if (L < min_L) min_L = L;
+                    if (L > max_L) max_L = L;
                     current_samples++;
                     
                     // Every batch_size samples, check convergence
                     if (current_samples % batch_size == 0) {
-                        if (check_convergence(current_samples, sum_L, sum_L2, convergence_threshold)) {
+                        bool converged = false;
+                        if (use_variance_method) {
+                            converged = check_convergence(current_samples, sum_L, sum_L2, convergence_threshold);
+                        } else {
+                            converged = check_convergence_contrast(min_L, max_L, convergence_threshold);
+                        }
+                        
+                        if (converged) {
                             break;  // Pixel has converged :D
                         }
                     }
@@ -88,7 +117,7 @@ class camera {
                 // Scale by actual number of samples taken
                 double scale = 1.0 / current_samples;
 
-                bool debug_view = true; // TRUE for HEATMAP, FALSE FOR NORMAL IMAGE
+                bool debug_view = false; // TRUE for HEATMAP, FALSE FOR NORMAL IMAGE
 
                 if (debug_view) {
                     // Green = Low Samples, Red = High Samples

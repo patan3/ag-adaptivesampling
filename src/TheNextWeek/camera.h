@@ -87,7 +87,24 @@ class camera {
                 
                 // Scale by actual number of samples taken
                 double scale = 1.0 / current_samples;
-                write_color(std::cout, scale * pixel_color);
+
+                bool debug_view = true; // TRUE for HEATMAP, FALSE FOR NORMAL IMAGE
+
+                if (debug_view) {
+                    // Green = Low Samples, Red = High Samples
+                    double t = double(current_samples - batch_size) / (samples_per_pixel - batch_size);
+                    if (t < 0) t = 0;
+                    if (t > 1) t = 1;
+                    
+                    // Simple interpolation from Green (0,1,0) to Red (1,0,0)
+                    color heatmap(t, 1.0 - t, 0.0); 
+                    
+                    // Write heatmap color (already in [0,1] range)
+                    write_color(std::cout, heatmap);
+                } else {
+                    // Normal Render Logic
+                    write_color(std::cout, scale * pixel_color);
+                }
             }
         }
 

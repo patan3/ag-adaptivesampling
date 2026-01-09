@@ -31,7 +31,7 @@ class camera {
     double defocus_angle = 0;  // Variation angle of rays through each pixel
     double focus_dist = 10;    // Distance from camera lookfrom point to plane of perfect focus
 
-    double convergence_threshold = 0.01; // Threshold for adaptive sampling convergenge
+    double convergence_threshold = 0.5; // Threshold for adaptive sampling convergenge
     int    batch_size = 16;  // Every 16 samples, check convergence
 
     // Helper for calculating luminance from RGB color
@@ -52,7 +52,7 @@ class camera {
         return std_error < threshold;
     }
 
-    // Helper for checking if pixel has converged based on contrast
+    // Helper for checking if pixel has converged based on contrast (luminance)
     static bool check_convergence_contrast(double min_L, double max_L, double threshold) {
         double sum = max_L + min_L;
         
@@ -65,6 +65,36 @@ class camera {
         return contrast < threshold;
     }
 
+    // Helper for checking if pixel has converged based on contrast metric (per-channel)
+    static bool check_convergence_channels(double min_R, double max_R, 
+                                          double min_G, double max_G,
+                                          double min_B, double max_B,
+                                          double threshold) {
+        // Calculate contrast for each channel separately
+        double contrast_R = 0.0, contrast_G = 0.0, contrast_B = 0.0;
+        
+        double sum_R = max_R + min_R;
+        if (std::abs(sum_R) > 1e-10) {
+            contrast_R = (max_R - min_R) / sum_R;
+        }
+        
+        double sum_G = max_G + min_G;
+        if (std::abs(sum_G) > 1e-10) {
+            contrast_G = (max_G - min_G) / sum_G;
+        }
+        
+        double sum_B = max_B + min_B;
+        if (std::abs(sum_B) > 1e-10) {
+            contrast_B = (max_B - min_B) / sum_B;
+        }
+        
+        // Weight by human eye sensitivity (same weights as luminance)
+        // Red: 0.2126, Green: 0.7152, Blue: 0.0722
+        double weighted_contrast = 0.2126 * contrast_R + 0.7152 * contrast_G + 0.0722 * contrast_B;
+        
+        return weighted_contrast < threshold;
+    }
+
     void render(const hittable& world) {
         initialize();
 
@@ -75,14 +105,22 @@ class camera {
             for (int i = 0; i < image_width; i++) {
                 color pixel_color(0,0,0);
                 
-                // Method selection: true = Variance, false = Contrast
-                bool use_variance_method = false;
+                // Method: 0 = Variance, 1 = Luminance Contrast, 2 = Per-Channel Contrast
+                int convergence_method = 2;
                 
-                // Track statistics for both methods
-                double sum_L = 0.0;   // Sum of luminance values (Variance)
-                double sum_L2 = 0.0;  // Sum of squared luminance values (Variance)
-                double min_L = infinity;  // Minimum luminance (Contrast)
-                double max_L = -infinity; // Maximum luminance (Contrast)
+                // Track statistics for variance method
+                double sum_L = 0.0;   // Sum of luminance values
+                double sum_L2 = 0.0;  // Sum of squared luminance values
+                
+                // Track statistics for luminance contrast method
+                double min_L = infinity;  // Minimum luminance
+                double max_L = -infinity; // Maximum luminance
+                
+                // Track statistics for per-channel contrast method
+                double min_R = infinity, max_R = -infinity;
+                double min_G = infinity, max_G = -infinity;
+                double min_B = infinity, max_B = -infinity;
+                
                 long current_samples = 0;
                 
                 // Continue until convergence OR max samples
@@ -91,21 +129,41 @@ class camera {
                     color sample_color = ray_color(r, max_depth, world);
                     pixel_color += sample_color;
                     
-                    // Track luminance statistics for convergence check
+                    // Track statistics for all methods
                     double L = get_luminance(sample_color);
                     sum_L += L;
                     sum_L2 += L * L;
+                    
+                    // Luminance min/max for simplified contrast
                     if (L < min_L) min_L = L;
                     if (L > max_L) max_L = L;
+                    
+                    // Per-channel min/max for per-channel contrast
+                    double R = sample_color.x();
+                    double G = sample_color.y();
+                    double B = sample_color.z();
+                    if (R < min_R) min_R = R;
+                    if (R > max_R) max_R = R;
+                    if (G < min_G) min_G = G;
+                    if (G > max_G) max_G = G;
+                    if (B < min_B) min_B = B;
+                    if (B > max_B) max_B = B;
+                    
                     current_samples++;
                     
                     // Every batch_size samples, check convergence
                     if (current_samples % batch_size == 0) {
                         bool converged = false;
-                        if (use_variance_method) {
+                        
+                        if (convergence_method == 0) {
+                            // Variance method 
                             converged = check_convergence(current_samples, sum_L, sum_L2, convergence_threshold);
-                        } else {
+                        } else if (convergence_method == 1) {
+                            // Luminance contrast 
                             converged = check_convergence_contrast(min_L, max_L, convergence_threshold);
+                        } else if (convergence_method == 2) {
+                            // Per-channel contrast  
+                            converged = check_convergence_channels(min_R, max_R, min_G, max_G, min_B, max_B, convergence_threshold);
                         }
                         
                         if (converged) {
@@ -117,7 +175,7 @@ class camera {
                 // Scale by actual number of samples taken
                 double scale = 1.0 / current_samples;
 
-                bool debug_view = false; // TRUE for HEATMAP, FALSE FOR NORMAL IMAGE
+                bool debug_view = true; // TRUE for HEATMAP, FALSE FOR NORMAL IMAGE
 
                 if (debug_view) {
                     // Green = Low Samples, Red = High Samples

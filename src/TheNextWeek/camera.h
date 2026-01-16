@@ -31,8 +31,11 @@ class camera {
     double defocus_angle = 0;  // Variation angle of rays through each pixel
     double focus_dist = 10;    // Distance from camera lookfrom point to plane of perfect focus
 
-    double convergence_threshold = 0.5; // Threshold for adaptive sampling convergenge
+    double convergence_threshold = 0.01; // Threshold for adaptive sampling convergenge
     int    batch_size = 16;  // Every 16 samples, check convergence
+
+    long long total_samples_shotted = 0;  // Counter for total rays fired
+    long long converged_pixels = 0;         // Counter for total converged pixels
 
     // Helper for calculating luminance from RGB color
     static double get_luminance(const color& c) {
@@ -95,10 +98,49 @@ class camera {
         return weighted_contrast < threshold;
     }
 
+
+    // Helper for checking convergence based on per-channel contrast (paper method)
+    static bool check_convergence_channels_paper(double min_R, double max_R, 
+                                                double min_G, double max_G,
+                                                double min_B, double max_B) {
+        // Separate thresholds per channel (from paper)
+        const double threshold_R = 0.4;
+        const double threshold_G = 0.3; 
+        const double threshold_B = 0.6; 
+        
+        // Calculate contrast for each channel separately
+        double contrast_R = 0.0, contrast_G = 0.0, contrast_B = 0.0;
+        
+        double sum_R = max_R + min_R;
+        if (std::abs(sum_R) > 1e-10) {
+            contrast_R = (max_R - min_R) / sum_R;
+        }
+        
+        double sum_G = max_G + min_G;
+        if (std::abs(sum_G) > 1e-10) {
+            contrast_G = (max_G - min_G) / sum_G;
+        }
+        
+        double sum_B = max_B + min_B;
+        if (std::abs(sum_B) > 1e-10) {
+            contrast_B = (max_B - min_B) / sum_B;
+        }
+        
+        // Converged if ALL channels are below their respective thresholds
+        return (contrast_R < threshold_R) && 
+            (contrast_G < threshold_G) && 
+            (contrast_B < threshold_B);
+    }
+
     void render(const hittable& world) {
         initialize();
 
         std::cout << "P3\n" << image_width << ' ' << image_height << "\n255\n";
+
+        // Sample distribution counters
+        int count_low = 0;
+        int count_mid = 0;
+        int count_high = 0;
 
         for (int j = 0; j < image_height; j++) {
             std::clog << "\rScanlines remaining: " << (image_height - j) << ' ' << std::flush;
@@ -106,7 +148,7 @@ class camera {
                 color pixel_color(0,0,0);
                 
                 // Method: 0 = Variance, 1 = Luminance Contrast, 2 = Per-Channel Contrast
-                int convergence_method = 2;
+                int convergence_method = 0;
                 
                 // Track statistics for variance method
                 double sum_L = 0.0;   // Sum of luminance values
@@ -152,7 +194,7 @@ class camera {
                     current_samples++;
                     
                     // Every batch_size samples, check convergence
-                    if (current_samples % batch_size == 0) {
+                    if (convergence_threshold < 1e9 && current_samples % batch_size == 0) {
                         bool converged = false;
                         
                         if (convergence_method == 0) {
@@ -164,18 +206,34 @@ class camera {
                         } else if (convergence_method == 2) {
                             // Per-channel contrast  
                             converged = check_convergence_channels(min_R, max_R, min_G, max_G, min_B, max_B, convergence_threshold);
+                        } else if (convergence_method == 3) {
+                            // Per-channel contrast (paper method)
+                            converged = check_convergence_channels_paper(min_R, max_R, min_G, max_G, min_B, max_B);
                         }
                         
                         if (converged) {
+                            converged_pixels++;
                             break;  // Pixel has converged :D
                         }
                     }
                 }
                 
+                // Track total samples shot
+                total_samples_shotted += current_samples;
+                
+                // Classify pixel difficulty
+                if (current_samples < samples_per_pixel / 3) {
+                    count_low++;
+                } else if (current_samples > 2 * samples_per_pixel / 3) {
+                    count_high++;
+                } else {
+                    count_mid++;
+                }
+                
                 // Scale by actual number of samples taken
                 double scale = 1.0 / current_samples;
 
-                bool debug_view = true; // TRUE for HEATMAP, FALSE FOR NORMAL IMAGE
+                bool debug_view = false; // TRUE for HEATMAP, FALSE FOR NORMAL IMAGE
 
                 if (debug_view) {
                     // Green = Low Samples, Red = High Samples
@@ -195,7 +253,23 @@ class camera {
             }
         }
 
+        int total_pixels = image_width * image_height;
+
         std::clog << "\rDone.                 \n";
+        std::clog << "Total Rays Fired: " << total_samples_shotted << "\n";
+        std::clog << "Average Samples Per Pixel: " 
+                  << (double)total_samples_shotted / (total_pixels) << "\n";
+        std::clog << "Converged Pixels: " << converged_pixels << " / "
+                  << (total_pixels) << "  " << converged_pixels * 100.0 / (total_pixels) << "%\n";
+        
+        // Sample distribution analysis
+        std::clog << "\nSample Distribution:\n";
+        std::clog << "  Low Effort Pixels  (< " << samples_per_pixel / 3 << " samples): " 
+                  << count_low << " (" << (count_low * 100.0 / total_pixels) << "%)\n";
+        std::clog << "  Medium Effort Pixels: " 
+                  << count_mid << " (" << (count_mid * 100.0 / total_pixels) << "%)\n";
+        std::clog << "  High Effort Pixels (> " << 2 * samples_per_pixel / 3 << " samples): " 
+                  << count_high << " (" << (count_high * 100.0 / total_pixels) << "%)\n";
     }
 
   private:

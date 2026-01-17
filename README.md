@@ -187,9 +187,9 @@ All core algorithmic decisions, implementation choices, and experimental design 
 
 ## References
 
-- **[Kajiya1986]**: Kajiya, J. T. "The Rendering Equation." SIGGRAPH 1986.
-- **[Mitchell1987]**: Mitchell, D. P. "Generating Antialiased Images at Low Sampling Densities." SIGGRAPH 1987.
-- **[Sik2013]**: Šik, M., et al. "A Survey of Adaptive Sampling in Realistic Image Synthesis." 2013.
+- **[1]** Martin Šik, Michal Křivánek, Jiří Bittner, and Jaroslav Křivánek. "A Survey of Adaptive Sampling in Realistic Image Synthesis." Technical Report DC-PSR-2013-02, Czech Technical University in Prague, 2013. URL: http://dcgi.felk.cvut.cz/home/bittner/publications/TR-DC-PSR-2013-02.pdf
+- **[2]** James T. Kajiya. "The Rendering Equation." SIGGRAPH '86: Proceedings of the 13th Annual Conference on Computer Graphics and Interactive Techniques, August 1986, pp. 143-150. DOI: 10.1145/15922.15902
+- **[3]** Don P. Mitchell. "Generating Antialiased Images at Low Sampling Densities." SIGGRAPH '87: Proceedings of the 14th Annual Conference on Computer Graphics and Interactive Techniques, July 1987, pp. 65-72. DOI: 10.1145/37401.37410
 - **[Ray Tracing in One Weekend: The Next Week]**: Shirley, P. "Ray Tracing in One Weekend Book Series." https://raytracing.github.io/
 
 

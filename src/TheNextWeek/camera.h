@@ -147,7 +147,7 @@ class camera {
             for (int i = 0; i < image_width; i++) {
                 color pixel_color(0,0,0);
                 
-                // Method: 0 = Variance, 1 = Luminance Contrast, 2 = Per-Channel Contrast
+                // Method: 0 = Variance, 1 = Luminance Contrast, 2 = Per-Channel Contrast, 3 = Per-Channel Mitchel Contrast
                 int convergence_method = 0;
                 
                 // Track statistics for variance method

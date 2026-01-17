@@ -1,133 +1,31 @@
-Ray Tracing in One Weekend Book Series
-====================================================================================================
+# Adaptive Sampling Ray Tracer
 
-| ![RT in One Weekend][cover1] | ![RT The Next Week][cover2] | ![RT The Rest of Your Life][cover3] |
-|:----------------------------:|:---------------------------:|:-----------------------------------:|
-|   [In One Weekend][book1]    |   [The Next Week][book2]    |   [The Rest of Your Life][book3]    |
+## Overview
 
+This project implements adaptive sampling techniques for Monte Carlo path tracing, building upon the "Ray Tracing in One Weekend" series. Instead of using uniform sampling (allocating the same number of samples to every pixel), this renderer intelligently distributes computational resources by detecting when pixels have converged to stable colors.
 
-Getting the Books
-------------------
-The _Ray Tracing in One Weekend_ series of books are now available to the public for free directly
-from the web.
+The implementation compares two adaptive sampling methods:
+- **Variance-based sampling**: Uses standard error of the mean to detect convergence
+- **Contrast-based sampling**: Uses per-channel contrast metric to detect convergence
 
-### Version 4.0.1
+### Key Results
+On the "bouncing_spheres" test scene:
+- **Variance method**: 59.3% reduction in ray count (40.7% of uniform baseline)
+- **Contrast method**: 25.8% reduction in ray count (74.2% of uniform baseline)
 
-  - [Ray Tracing in One Weekend][web1]
-  - [Ray Tracing: The Next Week][web2]
-  - [Ray Tracing: The Rest of Your Life][web3]
+## Building the Project
 
-These books have been formatted for both screen and print. For more information about printing your
-own copies, or on getting PDFs of the books, see [PRINTING.md][] for more information.
+### Prerequisites
+- CMake 3.1 or higher
+- C++ compiler with C++11 support
 
-
-Contributing
--------------
-If you'd like to contribute a PR _**please read our [contribution guidelines][CONTRIBUTING]
-first**_.
-
-
-Project Status
----------------
-If you'd like to check out the latest updates and watch our progress, we're on the `dev-patch`,
-`dev-minor`, and `dev-major` branches. You can also browse our issues and milestones to see what
-we're planning.
-
-If you're interested in contributing, email us! You can find our contact info at the head of each
-book. Or just start [a new discussion][discussions] or [issue][issues].
-
-
-GitHub Discussions
-------------------
-Do you have general questions about raytracing code, issues with your own implmentation, or general
-raytracing ideas you'd like to share? Check out our [GitHub discussions][discussions] forum!
-
-
-Directory Structure
--------------------
-The organization of this repository is meant to be simple and self-evident at a glance:
-
-  - `books/` --
-    This folder contains the three raytracing books (in HTML), and some supporting material.
-
-  - `images/` --
-    Contains all of the images and figures of the books. Can also be used to compare your
-    results.
-
-  - `style/` --
-    Contains the css for the books and the site.
-
-  - `src/` --
-    Contains the source.
-
-  - `src/<book>/` --
-    Contains the final source code for each book.
-
-
-Source Code
------------
-### Intent
-This repository is not meant to act as its own tutorial. The source is provided so you can compare
-your work when progressing through the book. We strongly recommend reading and following along with
-the book to understand the source. Ideally, you'll be developing your own implementation as you go,
-in order to deeply understand how a raytracer works.
-
-### Downloading The Source Code
-The [GitHub home][] for this project contains all source and documentation associated with the _Ray
-Tracing in One Weekend_ book series. To clone or download the source code, see the green "Clone or
-download" button in the upper right of the project home page.
-
-### Programming Language
-This book is written in C++, and uses some modern features of C++11. The language and features were
-chosen to be broadly understood by the largest collection of programmers. It is not meant to
-represent ideal (or optimized) C++ code.
-
-### Implementations in Other Languages
-The _Ray Tracing in One Weekend_ series has a long history of implementations in other programming
-languages (see [Implementations in Other Languages][implementations]), and across different
-operating systems. Feel free to add your own implementation to the list!
-
-### Branches
-In general, ongoing development, with all of the latest changes, can be found in the `dev-patch`,
-`dev-minor`, and `dev-major` branches, minor and major changes, depending on the change level and
-release in progress. We try to keep CHANGELOG.md up to date, so you can easily browse what's new in
-each development branch. We may from time to time use additional development branches, so stay up to
-date by reviewing the [CONTRIBUTING][] page.
-
-The `release` branch contains the latest released (and live) assets. This is the branch from which
-GitHub pages serves up https://raytracing.github.io/.
-
-
-Building and Running
----------------------
-Copies of the source are provided for you to check your work and compare against. If you wish to
-build the provided source, this project uses CMake. To build, go to the root of the project
-directory and run the following commands to create the debug version of every executable:
-
-    $ cmake -B build
-    $ cmake --build build
-
-You should run `cmake -B build` whenever you change your project `CMakeLists.txt` file (like when
-adding a new source file).
-
-You can specify the target with the `--target <program>` option, where the program may be
-`inOneWeekend`, `theNextWeek`, `theRestOfYourLife`, or any of the demonstration programs. By default
-(with no `--target` option), CMake will build all targets.
-
-    $ cmake --build build --target inOneWeekend
-
-### Optimized Builds
-CMake supports Release and Debug configurations. These require slightly different invocations
-across Windows (MSVC) and Linux/macOS (using GCC or Clang). The following instructions will place
-optimized binaries under `build/Release` and debug binaries (unoptimized and containing debug
-symbols) under `build/Debug`:
+### Build Instructions
 
 On Windows:
 
 ```shell
 $ cmake -B build
 $ cmake --build build --config Release  # Create release binaries in `build\Release`
-$ cmake --build build --config Debug    # Create debug binaries in `build\Debug`
 ```
 
 On Linux / macOS:
@@ -136,55 +34,166 @@ On Linux / macOS:
 # Configure and build release binaries under `build/Release`
 $ cmake -B build/Release -DCMAKE_BUILD_TYPE=Release
 $ cmake --build build/Release
-
-# Configure and build debug binaries under `build/Debug`
-$ cmake -B build/Debug -DCMAKE_BUILD_TYPE=Debug
-$ cmake --build build/Debug
 ```
-
-We recommend building and running the `Release` version (especially before the final render) for
-the fastest results, unless you need the extra debug information provided by the (default) debug
-build.
-
-### CMake GUI on Windows
-You may choose to use the CMake GUI when building on windows.
-
-1. Open CMake GUI on Windows
-2. For "Where is the source code:", set to location of the copied directory. For example,
-   `C:\Users\Peter\raytracing.github.io`.
-3. Add the folder "build" within the location of the copied directory. For example,
-   `C:\Users\Peter\raytracing.github.io\build`.
-4. For "Where to build the binaries", set this to the newly-created "build" directory.
-5. Click "Configure".
-6. For "Specify the generator for this project", set this to your version of Visual Studio.
-7. Click "Done".
-8. Click "Configure" again.
-9. Click "Generate".
-10. In File Explorer, navigate to build directory and double click the newly-created `.sln` project.
-11. Build in Visual Studio.
-
-If the project is succesfully cloned and built, you can then use the native terminal of your
-operating system to simply print the image to file.
 
 ### Running The Programs
 
 You can run the programs by executing the binaries placed in the build directory:
 
-    $ build\Debug\inOneWeekend > image.ppm
+To render a scene and save the output:
 
-or, run the optimized version (if you compiled with the release configuration):
+```powershell
+.\build\Release\theNextWeek.exe > output.ppm
+```
 
     $ build\Release\inOneWeekend > image.ppm
 
+The renderer outputs a PPM image file and logs performance metrics to stderr (console).
 The generated PPM file can be viewed directly as a regular computer image, if your operating system
 supports this image type. If your system doesn't handle PPM files, then you should be able to find
-PPM file viewers online. We like [ImageMagick][].
+PPM file viewers online. We used PPM Image Preview extension for Visual Studio Code.
 
 
-Corrections & Contributions
-----------------------------
-If you spot errors, have suggested corrections, or would like to help out with the project,
-_**please review the [CONTRIBUTING][] document for the most effective way to proceed.**_
+## Running the Project
+
+### Basic Usage
+
+
+
+### Selecting a Scene
+
+Edit `src/TheNextWeek/main.cc` and change the switch value in the `main()` function (line ~408):
+
+```cpp
+switch(1) {  // Change this number to select a scene
+    case 1:  bouncing_spheres();          break;
+    case 2:  checkered_spheres();         break;
+    // ... other scenes
+}
+```
+
+For the results in the report, use `case 1` (bouncing_spheres scene).
+
+## Configuring Adaptive Sampling
+
+All adaptive sampling parameters are configured in `src/TheNextWeek/camera.h`.
+
+### Key Parameters
+
+```cpp
+// In the camera class:
+int    samples_per_pixel = 500;        // Maximum samples per pixel
+double convergence_threshold = 0.01;   // Threshold for convergence detection
+int    batch_size = 16;                // Check convergence every N samples
+```
+
+### Selecting Convergence Method
+
+In `camera.h`, locate the `render()` function (around line 133) and change the `convergence_method` variable:
+
+```cpp
+// Method: 0 = Variance, 1 = Luminance Contrast, 2 = Per-Channel Contrast, 3 = Per-Channel Mitchel Contrast
+int convergence_method = 0;  // Change this value
+```
+
+- **Method 0 (Variance)**: Standard error of the mean convergence
+- **Method 3 (Per-Channel Mitchell)**: Per-channel contrast using Mitchell's thresholds (R=0.4, G=0.3, B=0.6)
+
+### Reproducing Report Results
+
+#### Uniform Sampling (Baseline)
+```cpp
+double convergence_threshold = 1e10;  // Set very high to disable early termination
+int    samples_per_pixel = 500;
+```
+
+#### Variance-Based Adaptive Sampling
+```cpp
+int    convergence_method = 0;
+double convergence_threshold = 0.01;
+int    samples_per_pixel = 500;
+int    batch_size = 16;
+```
+
+#### Contrast-Based Adaptive Sampling
+```cpp
+int    convergence_method = 3;  // Use Mitchell's per-channel thresholds
+double convergence_threshold = 0.01;  // Not used for method 3
+int    samples_per_pixel = 500;
+int    batch_size = 16;
+```
+
+### Generating Heatmaps
+
+To visualize sample distribution, enable debug mode in `camera.h` (around line 215):
+
+```cpp
+bool debug_view = true;  // TRUE for HEATMAP, FALSE for NORMAL IMAGE
+```
+
+Heatmap colors:
+- **Green**: Few samples (easy regions that converged quickly)
+- **Red**: Many samples (complex regions requiring full budget)
+
+## Performance Metrics
+
+After rendering, the console displays:
+- Total rays fired
+- Average samples per pixel
+- Number and percentage of converged pixels
+- Sample distribution (low/medium/high effort pixels)
+
+Example output:
+```
+Done.
+Total Rays Fired: 73335244
+Average Samples Per Pixel: 203.709
+Converged Pixels: 273629 / 360000  76.0081%
+
+Sample Distribution:
+  Low Effort Pixels  (< 166 samples): 205517 (57.0881%)
+  Medium Effort Pixels: 40512 (11.2533%)
+  High Effort Pixels (> 333 samples): 113971 (31.6586%)
+```
+
+## Scene Configuration
+
+For the bouncing_spheres scene, camera settings are in `main.cc`:
+
+```cpp
+cam.aspect_ratio      = 16.0 / 9.0;
+cam.image_width       = 800;
+cam.samples_per_pixel = 500;
+cam.max_depth         = 50;
+cam.vfov     = 20;
+cam.lookfrom = point3(13,2,3);
+cam.lookat   = point3(0,0,0);
+cam.defocus_angle = 0.6;
+cam.focus_dist    = 10.0;
+```
+
+Adjust `image_width` to change resolution (height is computed from aspect ratio).
+
+## AI Disclosure
+
+AI tools were used to assist in the development of this project in the following ways:
+
+- **Debugging**: AI assisted in identifying and resolving bugs during development
+- **Code optimization**: General improvements to code, such as optimizing online variance calculation for better performance, and adding guards for division by zero in contrast metrics
+- **Code cleanup**: Refactoring and formatting improvements for better readability
+- **Documentation**: AI assistance in writing and structuring this README documentation
+
+All core algorithmic decisions, implementation choices, and experimental design were made manually.
+
+## References
+
+- **[Kajiya1986]**: Kajiya, J. T. "The Rendering Equation." SIGGRAPH 1986.
+- **[Mitchell1987]**: Mitchell, D. P. "Generating Antialiased Images at Low Sampling Densities." SIGGRAPH 1987.
+- **[Sik2013]**: Šik, M., et al. "A Survey of Adaptive Sampling in Realistic Image Synthesis." 2013.
+- **[Ray Tracing in One Weekend: The Next Week]**: Shirley, P. "Ray Tracing in One Weekend Book Series." https://raytracing.github.io/
+
+
+
 
 
 
